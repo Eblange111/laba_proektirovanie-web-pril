@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Каталог книг</title>
+  <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+  <header class="top-bar">
+    <div class="wrap flex-head">
+      <a href="index.html" class="brand">Переплет</a>
+      <nav class="menu">
+        <a href="index.html">Главная</a>
+        <a href="catalog.html" class="active">Каталог книг</a>
+        <a href="add.html">Добавить книгу</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap main-box">
+    <div class="cat-head">
+      <h1 id="catTitle">Каталог книг</h1>
+      <div class="filter-bar">
+        <select id="genreFilter" class="input-box">
+          <option value="">Все жанры</option>
+        </select>
+        <a href="add.html" class="btn green-btnn">Добавить книгу</a>
+      </div>
+    </div>
+
+    <div id="booksGrid" class="books-grid"></div>
+    <p id="emptyMsg" class="not-found hide">Книги не найдены.</p>
+  </main>
+
+  <footer class="bottom-bar">
+    <div class="wrap">
+      <p>2026 Онлайн-библиотека Переплет</p>
+    </div>
+  </footer>
+  <script>
+    const grid = document.getElementById('booksGrid');
+    const genreSelect = document.getElementById('genreFilter');
+    const emptyMsg = document.getElementById('emptyMsg');
+
+    fetch('/api/genres').then(r => r.json()).then(genres => {
+      genres.forEach(g => {
+        genreSelect.innerHTML += `<option value="${g.id}">${g.name}</option>`;
+      });
+    });
+
+    // Функция загрузки книг из БД
+    async function loadBooks(genreId = '') {
+      const res = await fetch('/api/books?genre=' + genreId);
+      const books = await res.json();
+      grid.innerHTML = '';
+
+      if (books.length === 0) {
+        emptyMsg.classList.remove('hide');
+        return;
+      }
+      emptyMsg.classList.add('hide');
+
+            books.forEach(book => {
+        const coverHtml = book.image
+          ? `<img src="assets/${book.image}" alt="${book.title}" class="book-img" onerror="this.outerHTML='<div class=\\'cover\\'>${book.pub_year} г.</div>'">`
+          : `<div class="cover">${book.pub_year} г.</div>`;
+
+        grid.innerHTML += `
+          <article class="card">
+            ${coverHtml}
+            <div class="card-info">
+              <span class="tag">${book.genre_name} • ${book.pub_year} г.</span>
+              <h2>${book.title}</h2>
+              <p class="author">${book.author}</p>
+              <p class="about">${book.description || 'Описание отсутствует.'}</p>
+              <div class="card-actions">
+                <a href="book.html?id=${book.id}" class="btn line-btn full-w">Открыть</a>
+                <div class="card-button">
+                  <a href="edit.html?id=${book.id}" class="btn small-btn">Изменить</a>
+                  <button onclick="deleteBook(${book.id})" class="btn del-btn" style="flex:1">Удалить</button>
+                </div>
+              </div>
+            </div>
+          </article>
+        `;
+      });
+
+    }
+
+    async function deleteBook(id) {
+      if (!confirm('Удалить эту книгу из базы данных?')) return;
+      await fetch(`/api/books/${id}/delete`, { method: 'POST' });
+      loadBooks(genreSelect.value);
+    }
+
+    genreSelect.addEventListener('change', () => loadBooks(genreSelect.value));
+    loadBooks();
+  </script>
+
+
+</body>
+</html>
